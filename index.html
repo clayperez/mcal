@@ -7,22 +7,25 @@
 	<style type="text/css">
 		@import url(http://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700,800);
 		@import url(http://fonts.googleapis.com/css?family=Lato:900);
-		* {box-sizing:border-box;}
+		* {box-sizing:border-box;cursor: none;}
 		body,html {height:100%;margin:0;padding:0;font-family:"Open Sans",Helvetica, Arial, Verdana;font-size:80%;background:#000;}
 		#flexcal {height:100%;width:100%;display:flex;display:-webkit-flex;background:#000;}
 		#flexbody {width:100%;display:flex;display:-webkit-flex;overflow-y:hidden;}
 		#day0,#day1,#day2,#day3,#day4,#day5,#day6 {-webkit-flex:1;flex:1;border-right:1px solid #444;text-align:center;margin:0px;}
-		#day0 {background:rgba(255, 240, 165, 0.9);}
-		.dayhead {background:#fff0a5;color:#333;font-size:2.5em;padding:10px 2px;font-family:"Open Sans";font-weight:800;text-transform:uppercase;}
+		#day0 {background:rgba(133, 199, 132, 0.9);}
+		.dayhead {background:#FFD400;color:#333;font-size:2.5em;padding:10px 2px;font-family:"Open Sans";font-weight:800;text-transform:uppercase;}
 		.class {box-shadow: 0px 0px 5px 0px rgba(255,255,255,1);display:block;width:95%;border:0px solid rgba(0,0,0,0);margin:8px auto;border-radius:8px;overflow:hidden;color:#fff;font-size:.8em;}
 		.classtime {background:rgba(0,0,0,.2);color:#fff;padding:4px 0;width:auto;font-size:1.5em;}
 		.classtitle {background:rgba(0,0,0,0);padding:5px 0;width:100%;font-size:1.9em;font-weight:bold;}
 		.classsub {background:rgba(255,255,255,.5);color:#000;padding:3px 0;width:auto;font-weight:bold;font-size:1.2em;}
 		.footnote {color: #999;padding:10px;font-size:16px;font-weight: bold;text-align: center;}
+		.clock {position:absolute;z-index:10;bottom:0;left:0;font-size:2.5em;color:#fff;font-family: "Open Sans";font-weight:800;width:20%;padding:0 0 10px 15px;}
 	</style>
 </head>
 
 <body id="home">
+
+<div class="clock">00:00:00 PM</div>
 
 <div id="flexcal">
 	<div id="flexbody">
@@ -35,6 +38,7 @@
 		<div id="day6" class="day"><div class="dayhead"></div></div>
 	</div>
 </div>
+<script src="//cdnjs.cloudflare.com/ajax/libs/moment.js/2.10.3/moment.min.js"></script>
 <script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
 <script src="SQLike.js"></script>
 <!--[if IE]>
@@ -139,48 +143,44 @@
 						});
 						loadFeed(); //after the colors have been loaded, load the feed
 					}
-				).error(function(e){loadFeed();console.log("Error",e)});
+				).error(function(e){loadFeed();});
 			}
 
 			function loadFeed(){
 				//empty and prepare the days for populating
 				$(".day").html("<div class=\"dayhead\"></div>");
 
-				firstDay = new Date(); //the first day should be TODAY (global)
+				firstDay = new Date(moment().startOf("day")); //the first day should be TODAY (global)
 				lastDay = new Date(firstDay.getFullYear(),firstDay.getMonth(),firstDay.getDate()+7); //the last day should be TODAY+7 (to the start of the 8th day) (global)
 
 				var feedURL = "https://www.googleapis.com/calendar/v3/calendars/"+calendarId+"/events?maxResults="+maxEvents+"&orderBy=startTime&singleEvents=true&timeMin="+firstDay.toISOString()+"&timeMax="+lastDay.toISOString()+"&fields=description,items&key="+apiKey+"&callback=populateCalendar";
-				console.log(feedURL);
 				$.getJSON(feedURL)
-					.error(function(err){ console.log("getJSON Status:",err); })
-					.complete(function(result){ console.log(); eval(result.responseText); });
+					.error(function(err){  })
+					.complete(function(result){ eval(result.responseText); });
 
 			}
 
 			function populateCalendar(result){
-				console.log(result);
 				var eventSet = result.items; //the whole set of events returned but drilled down to the entries
 
 				for(var i=0;i<=6;i++){
-					var loopDay = new Date(firstDay.getFullYear(), firstDay.getMonth(), firstDay.getDate()+i); //start of this loop's day
-					var parsedLoopDay = loopDay.getFullYear()+"-"+zeroFill((loopDay.getMonth()+1),2)+"-"+zeroFill(loopDay.getDate(),2); //string comparable loop day for query fn
-					var nextDay = new Date(firstDay.getFullYear(), firstDay.getMonth(), firstDay.getDate()+i+1); //the start of the next day
-					var parsedNextDay = nextDay.getFullYear()+"-"+zeroFill((nextDay.getMonth()+1),2)+"-"+zeroFill(nextDay.getDate(),2); //string comparable next day for query fn
-					$("#day"+i).find(".dayhead").html(dayOfWeek(loopDay.getDay())); //draw the day name in the header
+		      var currentLoopDay = moment().add(i, "days").startOf("day");
+		      var tomorrow = moment().startOf("day").add(i+1, "days");
+					$("#day"+i).find(".dayhead").html(currentLoopDay.format("dddd")); //draw the day name in the header
 
 					//get the set of events for the current loop's day only
 					var loopEvents = SQLike.q({
-						Select:["summary","description","start","end"],
-						From:eventSet,
-						Where:function(){
-							var eventStartDay = parseGoogleDateTime(this.start.dateTime).date; //get a string comparable event start day for query fn
-							return eventStartDay>=parsedLoopDay && eventStartDay<parsedNextDay;
+						Select: ["summary","description","start","end"],
+						From: eventSet,
+						Where: function(){
+		          var googleDateTime = this.start.dateTime || this.start.date; //whole day events use date, rather than dateTime
+		          var eventStartTime = moment( googleDateTime );
+		          return ( eventStartTime.unix() >= currentLoopDay.unix() && eventStartTime.unix() < tomorrow.unix() );
 						}
 					});
 
 					//for each event found in this day's loop, post it in the day field
 					loopEvents.forEach(function(e,x,a){
-						console.log(e);
 						e.summary = e.summary || "";
 						e.description = e.description || "";
 						e.start = e.start || "";
@@ -203,17 +203,23 @@
 				//$("#day6").append("<div class='footnote'>Not all classes on this day are shown.</div>");
 			}
 
+			function updateTime(){
+				$(".clock").html(moment().format("h:mm:ss A"));
+			}
+			setInterval(updateTime,1000);
+
 			function reloadPage(){
 				if (navigator.onLine) {
 					window.location.reload();
 				} else{
 					var theTime = new Date;
-					console.log("No internet connection.",theTime);
+					//console.log("No internet connection.",theTime);
 				}
 			} //reload the entire window to account for any changes made by developer
-			window.setInterval(reloadPage,900000); //refresh every 15 minutes
+			window.setInterval(reloadPage,60000); //refresh every 1 minutes
 
 			getSpreadsheetSettings();
+
 		});
 	}
 </script>
