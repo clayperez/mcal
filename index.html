@@ -155,7 +155,7 @@
 
 				var feedURL = "https://www.googleapis.com/calendar/v3/calendars/"+calendarId+"/events?maxResults="+maxEvents+"&orderBy=startTime&singleEvents=true&timeMin="+firstDay.toISOString()+"&timeMax="+lastDay.toISOString()+"&fields=description,items&key="+apiKey+"&callback=populateCalendar";
 				$.getJSON(feedURL)
-					.error(function(err){  })
+					.error(function(err){ window.setTimeout(reloadPage, 5000); })
 					.complete(function(result){ eval(result.responseText); });
 
 			}
