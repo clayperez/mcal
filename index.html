@@ -147,21 +147,28 @@
 			}
 
 			function loadFeed(){
-				//empty and prepare the days for populating
-				$(".day").html("<div class=\"dayhead\"></div>");
-
 				firstDay = new Date(moment().startOf("day")); //the first day should be TODAY (global)
 				lastDay = new Date(firstDay.getFullYear(),firstDay.getMonth(),firstDay.getDate()+7); //the last day should be TODAY+7 (to the start of the 8th day) (global)
 
 				var feedURL = "https://www.googleapis.com/calendar/v3/calendars/"+calendarId+"/events?maxResults="+maxEvents+"&orderBy=startTime&singleEvents=true&timeMin="+firstDay.toISOString()+"&timeMax="+lastDay.toISOString()+"&fields=description,items&key="+apiKey+"&callback=populateCalendar";
-				$.getJSON(feedURL)
-					.error(function(err){ window.setTimeout(reloadPage, 5000); })
-					.complete(function(result){ eval(result.responseText); });
+				$.getJSON(feedURL).complete(
+					function(result){
+						if(result.statusText === "OK") {
+							//empty and prepare the days for populating
+							$(".day").html("<div class=\"dayhead\"></div>");
+							eval(result.responseText);
+						}
+						else {
+							window.setTimeout( loadFeed(), 5000 );
+						}
+					}
+				);
 
 			}
 
 			function populateCalendar(result){
 				var eventSet = result.items; //the whole set of events returned but drilled down to the entries
+				$(".class").remove();
 
 				for(var i=0;i<=6;i++){
 		      var currentLoopDay = moment().add(i, "days").startOf("day");
@@ -203,22 +210,20 @@
 				//$("#day6").append("<div class='footnote'>Not all classes on this day are shown.</div>");
 			}
 
-			function updateTime(){
-				$(".clock").html(moment().format("h:mm:ss A"));
-			}
-			setInterval(updateTime,1000);
-
+			function updateTime(){ $(".clock").html(moment().format("h:mm:ss A")); }
 			function reloadPage(){
 				if (navigator.onLine) {
 					window.location.reload();
 				} else{
 					var theTime = new Date;
-					//console.log("No internet connection.",theTime);
 				}
 			} //reload the entire window to account for any changes made by developer
-			window.setInterval(reloadPage,600000); //refresh every 10 minutes
 
-			getSpreadsheetSettings();
+			window.setInterval(updateTime,1000);
+			window.setInterval(loadFeed,5000); //refresh the feed every 5 minutes
+			window.setInterval(reloadPage,600000); //Reload the whole site (auto upgrade)
+
+			getSpreadsheetSettings(); //Kick it all off by fetching spreadsheet colors when the page is loaded.
 
 		});
 	}
