@@ -8,24 +8,24 @@
 		@import url(http://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700,800);
 		@import url(http://fonts.googleapis.com/css?family=Lato:900);
 		* {box-sizing:border-box;cursor: none;}
-		body,html {height:100%;margin:0;padding:0;font-family:"Open Sans",Helvetica, Arial, Verdana;font-size:80%;background:#000;}
-		#flexcal {height:100%;width:100%;display:flex;display:-webkit-flex;background:#000;}
+		body,html {height:100%;margin:0;padding:0;font-family:"Open Sans",Helvetica, Arial, Verdana;font-size:80%;background:#333;}
+		#flexcal {height:100%;width:100%;display:flex;display:-webkit-flex;background:#333;}
 		#flexbody {width:100%;display:flex;display:-webkit-flex;overflow-y:hidden;}
 		#day0,#day1,#day2,#day3,#day4,#day5,#day6 {-webkit-flex:1;flex:1;border-right:1px solid #444;text-align:center;margin:0px;}
-		#day0 {background:rgba(133, 199, 132, 0.9);}
-		.dayhead {background:#FFD400;color:#333;font-size:2.5em;padding:10px 2px;font-family:"Open Sans";font-weight:800;text-transform:uppercase;}
-		.class {box-shadow: 0px 0px 5px 0px rgba(255,255,255,1);display:block;width:95%;border:0px solid rgba(0,0,0,0);margin:8px auto;border-radius:8px;overflow:hidden;color:#fff;font-size:.8em;}
+		#day0 {background:rgba(68, 31, 97, 0.9);}
+		.dayhead {background:#efff00;color:#333;font-size:2.5em;padding:10px 2px;font-family:"Open Sans";font-weight:800;text-transform:uppercase;}
+		.classListing {display:block;width:95%;margin:5px auto;overflow:hidden;color:#fff;font-size:.75em;}
 		.classtime {background:rgba(0,0,0,.2);color:#fff;padding:4px 0;width:auto;font-size:1.5em;}
 		.classtitle {background:rgba(0,0,0,0);padding:5px 0;width:100%;font-size:1.9em;font-weight:bold;}
 		.classsub {background:rgba(255,255,255,.5);color:#000;padding:3px 0;width:auto;font-weight:bold;font-size:1.2em;}
 		.footnote {color: #999;padding:10px;font-size:16px;font-weight: bold;text-align: center;}
-		.clock {position:absolute;z-index:10;bottom:0;left:0;font-size:2.5em;color:#fff;font-family: "Open Sans";font-weight:800;width:20%;padding:0 0 10px 15px;}
+		.clock {position:absolute;z-index:10;bottom:0;left:0;font-size:4em;color:#fff;font-family: "Open Sans";font-weight:800;width:14%;padding:0 0 10px 0;text-align: center;}
 	</style>
 </head>
 
 <body id="home">
 
-<div class="clock">00:00:00 PM</div>
+<div class="clock">00:00:00</div>
 
 <div id="flexcal">
 	<div id="flexbody">
@@ -139,7 +139,9 @@
 						$.each(result.feed.entry,function(i,pair){
 							var color = pair.title.$t;
 							var rPattern = $.trim(pair.content.$t.split(":")[1]); //split the substring at : then trim the spaces from the last element.
-							colorgrid[color][1] = new RegExp(rPattern,"i"); //change the colorgrid to hold the spreadsheet's color pattern
+							if(typeof colorgrid[color] !== "undefined") {
+								colorgrid[color][1] = new RegExp(rPattern,"i"); //change the colorgrid to hold the spreadsheet's color pattern
+							}
 						});
 						loadFeed(); //after the colors have been loaded, load the feed
 					}
@@ -150,16 +152,13 @@
 				firstDay = new Date(moment().startOf("day")); //the first day should be TODAY (global)
 				lastDay = new Date(firstDay.getFullYear(),firstDay.getMonth(),firstDay.getDate()+7); //the last day should be TODAY+7 (to the start of the 8th day) (global)
 
-				var feedURL = "https://www.googleapis.com/calendar/v3/calendars/"+calendarId+"/events?maxResults="+maxEvents+"&orderBy=startTime&singleEvents=true&timeMin="+firstDay.toISOString()+"&timeMax="+lastDay.toISOString()+"&fields=description,items&key="+apiKey+"&callback=populateCalendar";
+				var feedURL = "https://www.googleapis.com/calendar/v3/calendars/"+calendarId+"/events?maxResults="+maxEvents+"&orderBy=startTime&singleEvents=true&timeMin="+firstDay.toISOString()+"&timeMax="+lastDay.toISOString()+"&fields=description,items&key="+apiKey;
 				$.getJSON(feedURL).complete(
 					function(result){
-						if(result.statusText === "OK") {
+						if(result.statusText === "success") {
 							//empty and prepare the days for populating
 							$(".day").html("<div class=\"dayhead\"></div>");
-							eval(result.responseText);
-						}
-						else {
-							window.setTimeout( loadFeed(), 5000 );
+							populateCalendar(result.responseText);
 						}
 					}
 				);
@@ -167,6 +166,7 @@
 			}
 
 			function populateCalendar(result){
+				var result = JSON.parse(result);
 				var eventSet = result.items; //the whole set of events returned but drilled down to the entries
 				$(".class").remove();
 
@@ -174,7 +174,6 @@
 		      var currentLoopDay = moment().add(i, "days").startOf("day");
 		      var tomorrow = moment().startOf("day").add(i+1, "days");
 					$("#day"+i).find(".dayhead").html(currentLoopDay.format("dddd")); //draw the day name in the header
-
 					//get the set of events for the current loop's day only
 					var loopEvents = SQLike.q({
 						Select: ["summary","description","start","end"],
@@ -202,7 +201,7 @@
 						//Put it together
 						var time = "<div class='classtime'>"+formatTime(startTime)+"</div>";
 						var title = "<div class='classtitle'>"+e.summary+"</div>";
-						$("#day"+i).append("<div class='class' style='background:"+color+";'>"+time+title+"</div>");
+						$("#day"+i).append("<div class='classListing' style='background:"+color+";'>"+time+title+"</div>");
 
 					});
 				}
@@ -210,7 +209,7 @@
 				//$("#day6").append("<div class='footnote'>Not all classes on this day are shown.</div>");
 			}
 
-			function updateTime(){ $(".clock").html(moment().format("h:mm:ss A")); }
+			function updateTime(){ $(".clock").html(moment().format("h:mm:ss")); }
 			function reloadPage(){
 				if (navigator.onLine) {
 					window.location.reload();
@@ -219,9 +218,9 @@
 				}
 			} //reload the entire window to account for any changes made by developer
 
-			window.setInterval(updateTime,1000);
-			window.setInterval(loadFeed,5000); //refresh the feed every 5 minutes
-			window.setInterval(reloadPage,600000); //Reload the whole site (auto upgrade)
+			window.setInterval(updateTime, 1000); //clock interval
+			window.setInterval(loadFeed, 5*60*1000); //refresh the feed every 5 minutes
+			window.setInterval(reloadPage, 60*60*1000); //Reload the whole site every hour
 
 			getSpreadsheetSettings(); //Kick it all off by fetching spreadsheet colors when the page is loaded.
 
