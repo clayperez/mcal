@@ -152,10 +152,11 @@
 				firstDay = new Date(moment().startOf("day")); //the first day should be TODAY (global)
 				lastDay = new Date(firstDay.getFullYear(),firstDay.getMonth(),firstDay.getDate()+7); //the last day should be TODAY+7 (to the start of the 8th day) (global)
 
+
 				var feedURL = "https://www.googleapis.com/calendar/v3/calendars/"+calendarId+"/events?maxResults="+maxEvents+"&orderBy=startTime&singleEvents=true&timeMin="+firstDay.toISOString()+"&timeMax="+lastDay.toISOString()+"&fields=description,items&key="+apiKey;
 				$.getJSON(feedURL).complete(
 					function(result){
-						if(result.statusText === "success") {
+						if(result.status === 200) {
 							//empty and prepare the days for populating
 							$(".day").html("<div class=\"dayhead\"></div>");
 							populateCalendar(result.responseText);
@@ -166,6 +167,7 @@
 			}
 
 			function populateCalendar(result){
+				console.log(result);
 				var result = JSON.parse(result);
 				var eventSet = result.items; //the whole set of events returned but drilled down to the entries
 				$(".class").remove();
